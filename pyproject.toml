@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "djangoproject"
+version = "0.1.0"
+description = ""
+authors = ["HoodieMontana <s24b_stepanov@179.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+django = "^4.2.3"
+djangorestframework = "^3.14.0"
+drf-yasg = "^1.21.6"
+django-filter = "^23.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
