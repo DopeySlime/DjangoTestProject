@@ -37,7 +37,7 @@ docker build -t django-docker-test .
 docker run -p 8000:8000 django-docker-test
 ```
 
-5. Once the container is up and running, you can access the Django application by opening your web browser and visiting [http://localhost:8000](http://localhost:8000).
+5. Once the container is up and running, you can access the Django application by opening your web browser and visiting [http://localhost:8000/api/v1/](http://localhost:8000/api/v1/) or [http://localhost:8000/api/v1/docs](http://localhost:8000/api/v1/docs) .
 
 ## Development
 
