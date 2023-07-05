@@ -2,6 +2,10 @@
 
 This is a test project built with Django. It aims to demonstrate skills Django usage. Please note that this project does not utilize Docker Compose and is intended for interview purposes only.
 
+## Preview
+
+![Preview](/example/example.png)
+
 ## Prerequisites
 
 Make sure you have the following dependencies installed on your local machine before proceeding:
