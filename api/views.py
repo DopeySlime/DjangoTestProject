@@ -1,18 +1,16 @@
 from typing import Dict, TypeVar
 
+from django.db.models import Model, QuerySet
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
-
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer
 
 from .models import Task
 from .serializers import TaskSerializer
-
-from django.db.models import Model, QuerySet
 
 TModel = TypeVar('TModel', bound=Model)
 
