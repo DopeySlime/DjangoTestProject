@@ -1,20 +1,72 @@
+from typing import Dict, TypeVar
+
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from rest_framework import viewsets, filters, status, serializers
+from rest_framework import viewsets, status
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
 
 from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer
+
 from .models import Task
 from .serializers import TaskSerializer
 
+from django.db.models import Model, QuerySet
 
-class TaskStatusSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=['all', 'completed', 'not_completed'], required=False)
+TModel = TypeVar('TModel', bound=Model)
 
 
-class TaskViewSet(viewsets.ModelViewSet):
-    queryset = Task.objects.all()
-    serializer_class = TaskSerializer
+class CRUDViewSet(viewsets.ModelViewSet):
+    create_response: Dict[str, str] = {'message': 'Resource created successfully'}
+    update_response: Dict[str, str] = {'message': 'Resource updated successfully'}
+    delete_response: Dict[str, str] = {'message': 'Resource deleted successfully'}
+
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        serializer: ModelSerializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response({_: self.create_response[_] for _ in self.create_response if _ in ['message']},
+                        status=status.HTTP_201_CREATED)
+
+    def update(self, request: Request, *args, **kwargs) -> Response:
+        partial: bool = kwargs.pop('partial', False)
+        instance: TModel = self.get_object()
+        serializer: ModelSerializer = self.get_serializer(instance, data=request.data, partial=partial)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_update(serializer)
+        return Response({_: self.update_response[_] for _ in self.update_response if _ in ['message']},
+                        status=status.HTTP_200_OK)
+
+    def destroy(self, request: Request, *args, **kwargs) -> Response:
+        instance: TModel = self.get_object()
+        self.perform_destroy(instance)
+        return Response({_: self.delete_response[_] for _ in self.delete_response if _ in ['message']},
+                        status=status.HTTP_200_OK)
+
+
+class TaskViewSet(CRUDViewSet):
+    queryset: QuerySet = Task.objects.all()
+    serializer_class: ModelSerializer = TaskSerializer
+
+    create_response: Dict[str, str] = {
+        'message': 'Task created successfully',
+        'description': 'Create a new task.'
+    }
+    update_response: Dict[str, str] = {
+        'message': 'Task updated successfully',
+        'description': 'Update an existing task.'
+    }
+    delete_response: Dict[str, str] = {
+        'message': 'Task deleted successfully',
+        'description': 'Delete a task.'
+    }
 
     @swagger_auto_schema(
         operation_description="Retrieve, create, update, or delete tasks.",
@@ -25,58 +77,37 @@ class TaskViewSet(viewsets.ModelViewSet):
                 in_=openapi.IN_QUERY,
                 description='Filter tasks by status (all, completed, not_completed).',
                 type=openapi.TYPE_STRING,
-                required=False
+                required=False,
+                enum=['all', 'completed', 'not_completed'],
             )
         ],
-        query_serializer=TaskStatusSerializer
     )
-    def list(self, request, *args, **kwargs):
-        status = request.query_params.get('status', None)
+    def list(self, request: Request, *args, **kwargs) -> Response:
+        compilation_status: str = request.query_params.get('status', None)
 
-        if status == 'completed':
-            queryset = self.queryset.filter(completed=True)
-        elif status == 'not_completed':
-            queryset = self.queryset.filter(completed=False)
+        if compilation_status == 'completed':
+            queryset: QuerySet[Task] = self.queryset.filter(completed=True)
+        elif compilation_status == 'not_completed':
+            queryset: QuerySet[Task] = self.queryset.filter(completed=False)
         else:
-            queryset = self.queryset.all()
+            queryset: QuerySet[Task] = self.queryset.all()
 
         self.queryset = queryset
 
         return super().list(request, *args, **kwargs)
 
-    @swagger_auto_schema(
-        operation_description="Create a new task.",
-        responses={201: openapi.Response(description='Task created successfully')}
-    )
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        self.perform_create(serializer)
-        return Response({'message': 'Task created successfully'}, status=status.HTTP_201_CREATED)
 
-    @swagger_auto_schema(
-        operation_description="Update an existing task.",
-        responses={200: openapi.Response(description='Task updated successfully')}
-    )
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
-            return Response({'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        self.perform_update(serializer)
-        return Response({'message': 'Task updated successfully'}, status=status.HTTP_200_OK)
+TaskViewSet.create = swagger_auto_schema(
+    operation_description=TaskViewSet.create_response['description'],
+    responses={201: openapi.Response(description=TaskViewSet.create_response['message'])}
+)(TaskViewSet.create)
 
-    @swagger_auto_schema(
-        operation_description="Delete a task.",
-        responses={200: openapi.Response(description='Task deleted successfully')}
-    )
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        self.perform_destroy(instance)
-        return Response({'message': 'Task deleted successfully'}, status=status.HTTP_200_OK)
+TaskViewSet.update = swagger_auto_schema(
+    operation_description=TaskViewSet.update_response['description'],
+    responses={200: openapi.Response(description=TaskViewSet.update_response['message'])}
+)(TaskViewSet.update)
+
+TaskViewSet.destroy = swagger_auto_schema(
+    operation_description=TaskViewSet.delete_response['description'],
+    responses={200: openapi.Response(description=TaskViewSet.delete_response['message'])}
+)(TaskViewSet.destroy)
